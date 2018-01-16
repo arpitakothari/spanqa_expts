@@ -10,10 +10,19 @@ from nltk.tokenize import word_tokenize
 stemmer = PorterStemmer()
 stop = set(stopwords.words('english'))
 
+def remove_stop(list_words):
+    res_words = []
+    for word in list_words:
+        if word not in stop:
+            res_words.append(word)
+    return res_words
+
 def jaccard_similarity(question, passage):
+    question = remove_stop(question)
     ret_dict = {}
     sent_index = 0
     for sent_words in passage:
+        sent_words = remove_stop(sent_words)
         sent_words = [stemmer.stem(word.lower()) for word in sent_words]
         overlap = 0
         union = set(sent_words)
@@ -27,11 +36,13 @@ def jaccard_similarity(question, passage):
     return ret_dict
 
 def tf_idf(question, passage):
+    question = remove_stop(question)
     ret_dict = {}
     sent_index = 0
     idf = {}
     tf = {}
     for sent_words in passage:
+        sent_words = remove_stop(sent_words)
         sent_words = [stemmer.stem(word.lower()) for word in sent_words]
         for word in set(question):
             if sent_index not in tf:
@@ -50,6 +61,7 @@ def tf_idf(question, passage):
     return ret_dict
 
 def bm_25(question, passage):
+    question = remove_stop(question)
     k1 = 1.6
     b = 0.75
     ret_dict = {}
@@ -58,6 +70,7 @@ def bm_25(question, passage):
     tf = {}
     avgdl = 0
     for sent_words in passage:
+        sent_words = remove_stop(sent_words)
         sent_words = [stemmer.stem(word.lower()) for word in sent_words]
         avgdl += len(sent_words)
         for word in set(question):
@@ -90,10 +103,12 @@ def eval_top(ret_dict, passag, answers, num_top):
             if answ in sent:
                 f = 1
         result.append(f)
+    if len(result) == 1:
+        result.append((0))
     return result
 
 def main():
-    origin = 'newsqa'
+    origin = 'squad'
     num_top = 2
 
     jac_sim_result = [0] * num_top
@@ -112,8 +127,8 @@ def main():
         passg = row['passage']
         passag = sent_tokenize(passg)
         passage = [word_tokenize(sent) for sent in passag]
-        answers = []
         answers = [answer['text'].strip() for answer in row['true_answers']]
+        answers = set(answers)
 
         jac_sim_dict = jaccard_similarity(question, passage)
         res_1 = eval_top(jac_sim_dict, passag, answers, num_top)
